@@ -1,0 +1,40 @@
+name: Java Calculator CI
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Download JavaFX
+        run: |
+          wget -q https://download2.gluonhq.com/openjfx/26.0.1/openjfx-26.0.1_linux-x64_bin-sdk.zip
+          unzip -q openjfx-26.0.1_linux-x64_bin-sdk.zip
+
+      - name: Build Calculator
+        run: |
+          mkdir -p out
+          javac --module-path javafx-sdk-26.0.1/lib \
+            --add-modules javafx.controls \
+            -d out \
+            src/SE/Calculator.java
+
+      - name: Basic application check
+        run: |
+          test -f src/SE/Calculator.java
+          grep -q "public class Calculator" src/SE/Calculator.java
+          grep -q "historyList" src/SE/Calculator.java
+          echo "Calculator build and checks passed."
