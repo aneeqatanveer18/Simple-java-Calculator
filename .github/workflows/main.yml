@@ -30,11 +30,11 @@ jobs:
           javac --module-path javafx-sdk-26.0.1/lib \
             --add-modules javafx.controls \
             -d out \
-            src/SE/Calculator.java
+            Calculator.java
 
       - name: Basic application check
         run: |
-          test -f src/SE/Calculator.java
-          grep -q "public class Calculator" src/SE/Calculator.java
-          grep -q "historyList" src/SE/Calculator.java
+          test -f Calculator.java
+          grep -q "public class Calculator" Calculator.java
+          grep -q "historyList" Calculator.java
           echo "Calculator build and checks passed."
