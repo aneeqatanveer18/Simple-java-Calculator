@@ -26,7 +26,6 @@ public class Calculator extends Application {
         expressionDisplay = new TextField("");
         expressionDisplay.setEditable(false);
         expressionDisplay.setAlignment(Pos.CENTER_RIGHT);
-
         expressionDisplay.setStyle(
                 "-fx-font-size: 18px;" +
                 "-fx-background-color: #121212;" +
@@ -38,7 +37,6 @@ public class Calculator extends Application {
         display = new TextField("0");
         display.setEditable(false);
         display.setAlignment(Pos.CENTER_RIGHT);
-
         display.setStyle(
                 "-fx-font-size: 30px;" +
                 "-fx-background-color: #202124;" +
@@ -50,18 +48,17 @@ public class Calculator extends Application {
 
         // Grid for buttons
         GridPane grid = new GridPane();
-
         grid.setHgap(8);
         grid.setVgap(8);
         grid.setAlignment(Pos.CENTER);
 
         // Button names
         String[] buttons = {
-                "C", "⌫", "÷", "×",
-                "7", "8", "9", "−",
-                "4", "5", "6", "+",
-                "1", "2", "3", "=",
-                "0", "."
+                "C", "⌫", "%", "÷",
+                "7", "8", "9", "×",
+                "4", "5", "6", "−",
+                "1", "2", "3", "+",
+                "0", ".", "="
         };
 
         int index = 0;
@@ -69,7 +66,6 @@ public class Calculator extends Application {
         for (String text : buttons) {
 
             Button button = new Button(text);
-
             button.setPrefSize(75, 60);
 
             // Normal button style
@@ -82,7 +78,6 @@ public class Calculator extends Application {
 
             // Clear button
             if (text.equals("C")) {
-
                 button.setStyle(
                         "-fx-font-size: 20px;" +
                         "-fx-background-color: #d93025;" +
@@ -93,7 +88,6 @@ public class Calculator extends Application {
 
             // Equals button
             if (text.equals("=")) {
-
                 button.setStyle(
                         "-fx-font-size: 20px;" +
                         "-fx-background-color: #1a73e8;" +
@@ -106,7 +100,8 @@ public class Calculator extends Application {
             if (text.equals("+") ||
                 text.equals("−") ||
                 text.equals("×") ||
-                text.equals("÷")) {
+                text.equals("÷") ||
+                text.equals("%")) {
 
                 button.setStyle(
                         "-fx-font-size: 20px;" +
@@ -121,15 +116,15 @@ public class Calculator extends Application {
 
             // Add buttons to grid
             if (text.equals("0")) {
-
                 grid.add(button, 0, 4, 2, 1);
-
-            } else if (text.equals(".")) {
-
+            }
+            else if (text.equals(".")) {
                 grid.add(button, 2, 4);
-
-            } else {
-
+            }
+            else if (text.equals("=")) {
+                grid.add(button, 3, 4);
+            }
+            else {
                 int row = index / 4;
                 int column = index % 4;
 
@@ -141,10 +136,8 @@ public class Calculator extends Application {
 
         // Main layout
         VBox root = new VBox(15);
-
         root.setPadding(new Insets(20));
         root.setAlignment(Pos.CENTER);
-
         root.setStyle("-fx-background-color: #121212;");
 
         // Add expression display, main display and buttons
@@ -172,13 +165,10 @@ public class Calculator extends Application {
         if (value.equals("C")) {
 
             display.setText("0");
-
             expressionDisplay.setText("");
 
             firstNumber = 0;
-
             operator = "";
-
             newNumber = true;
 
             return;
@@ -230,7 +220,6 @@ public class Calculator extends Application {
             if (newNumber || display.getText().equals("0")) {
 
                 display.setText(value);
-
                 newNumber = false;
 
             } else {
@@ -264,7 +253,6 @@ public class Calculator extends Application {
             if (newNumber) {
 
                 display.setText("0.");
-
                 newNumber = false;
 
             } else if (!display.getText().contains(".")) {
@@ -283,6 +271,37 @@ public class Calculator extends Application {
                         + operator
                         + " "
                         + display.getText()
+                );
+            }
+
+            return;
+        }
+
+        // =========================
+        // PERCENTAGE
+        // =========================
+
+        if (value.equals("%")) {
+
+            double number = Double.parseDouble(
+                    display.getText()
+            );
+
+            number = number / 100;
+
+            display.setText(
+                    formatNumber(number)
+            );
+
+            // Update expression if operator exists
+            if (!operator.equals("")) {
+
+                expressionDisplay.setText(
+                        formatNumber(firstNumber)
+                        + " "
+                        + operator
+                        + " "
+                        + formatNumber(number)
                 );
             }
 
@@ -379,6 +398,7 @@ public class Calculator extends Application {
                         );
 
                         newNumber = true;
+                        operator = "";
 
                         return;
                     }
@@ -389,7 +409,6 @@ public class Calculator extends Application {
                     break;
 
                 default:
-
                     return;
             }
 
@@ -399,7 +418,6 @@ public class Calculator extends Application {
             );
 
             newNumber = true;
-
             operator = "";
         }
     }
