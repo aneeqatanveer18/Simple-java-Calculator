@@ -5,6 +5,8 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
@@ -14,6 +16,7 @@ public class Calculator extends Application {
 
     private TextField display;
     private TextField expressionDisplay;
+    private ListView<String> historyList;
 
     private double firstNumber = 0;
     private String operator = "";
@@ -46,8 +49,33 @@ public class Calculator extends Application {
                 "-fx-background-radius: 8;"
         );
 
-        // Grid for buttons
+        // =========================
+        // CALCULATION HISTORY
+        // =========================
+
+        Label historyLabel = new Label("Calculation History");
+
+        historyLabel.setStyle(
+                "-fx-font-size: 16px;" +
+                "-fx-text-fill: white;"
+        );
+
+        historyList = new ListView<>();
+
+        historyList.setPrefHeight(120);
+
+        historyList.setStyle(
+                "-fx-background-color: #202124;" +
+                "-fx-control-inner-background: #202124;" +
+                "-fx-text-fill: white;"
+        );
+
+        // =========================
+        // GRID FOR BUTTONS
+        // =========================
+
         GridPane grid = new GridPane();
+
         grid.setHgap(8);
         grid.setVgap(8);
         grid.setAlignment(Pos.CENTER);
@@ -66,6 +94,7 @@ public class Calculator extends Application {
         for (String text : buttons) {
 
             Button button = new Button(text);
+
             button.setPrefSize(75, 60);
 
             // Normal button style
@@ -78,6 +107,7 @@ public class Calculator extends Application {
 
             // Clear button
             if (text.equals("C")) {
+
                 button.setStyle(
                         "-fx-font-size: 20px;" +
                         "-fx-background-color: #d93025;" +
@@ -88,6 +118,7 @@ public class Calculator extends Application {
 
             // Equals button
             if (text.equals("=")) {
+
                 button.setStyle(
                         "-fx-font-size: 20px;" +
                         "-fx-background-color: #1a73e8;" +
@@ -116,15 +147,19 @@ public class Calculator extends Application {
 
             // Add buttons to grid
             if (text.equals("0")) {
+
                 grid.add(button, 0, 4, 2, 1);
-            }
-            else if (text.equals(".")) {
+
+            } else if (text.equals(".")) {
+
                 grid.add(button, 2, 4);
-            }
-            else if (text.equals("=")) {
+
+            } else if (text.equals("=")) {
+
                 grid.add(button, 3, 4);
-            }
-            else {
+
+            } else {
+
                 int row = index / 4;
                 int column = index % 4;
 
@@ -134,25 +169,45 @@ public class Calculator extends Application {
             index++;
         }
 
-        // Main layout
-        VBox root = new VBox(15);
-        root.setPadding(new Insets(20));
-        root.setAlignment(Pos.CENTER);
-        root.setStyle("-fx-background-color: #121212;");
+        // =========================
+        // MAIN LAYOUT
+        // =========================
 
-        // Add expression display, main display and buttons
+        VBox root = new VBox(12);
+
+        root.setPadding(new Insets(20));
+
+        root.setAlignment(Pos.CENTER);
+
+        root.setStyle(
+                "-fx-background-color: #121212;"
+        );
+
+        // Add everything
         root.getChildren().addAll(
                 expressionDisplay,
                 display,
+                historyLabel,
+                historyList,
                 grid
         );
 
-        // Scene
-        Scene scene = new Scene(root, 380, 500);
+        // =========================
+        // SCENE
+        // =========================
+
+        Scene scene = new Scene(
+                root,
+                380,
+                650
+        );
 
         stage.setTitle("Simple Calculator");
+
         stage.setScene(scene);
+
         stage.setResizable(false);
+
         stage.show();
     }
 
@@ -165,10 +220,13 @@ public class Calculator extends Application {
         if (value.equals("C")) {
 
             display.setText("0");
+
             expressionDisplay.setText("");
 
             firstNumber = 0;
+
             operator = "";
+
             newNumber = true;
 
             return;
@@ -217,9 +275,11 @@ public class Calculator extends Application {
 
         if (value.matches("[0-9]")) {
 
-            if (newNumber || display.getText().equals("0")) {
+            if (newNumber ||
+                display.getText().equals("0")) {
 
                 display.setText(value);
+
                 newNumber = false;
 
             } else {
@@ -253,6 +313,7 @@ public class Calculator extends Application {
             if (newNumber) {
 
                 display.setText("0.");
+
                 newNumber = false;
 
             } else if (!display.getText().contains(".")) {
@@ -293,7 +354,7 @@ public class Calculator extends Application {
                     formatNumber(number)
             );
 
-            // Update expression if operator exists
+            // Update expression
             if (!operator.equals("")) {
 
                 expressionDisplay.setText(
@@ -342,6 +403,7 @@ public class Calculator extends Application {
 
             // If no operator was selected
             if (operator.equals("")) {
+
                 return;
             }
 
@@ -353,13 +415,14 @@ public class Calculator extends Application {
             double result = 0;
 
             // Show complete expression
-            expressionDisplay.setText(
+            String calculation =
                     formatNumber(firstNumber)
                     + " "
                     + operator
                     + " "
-                    + formatNumber(secondNumber)
-            );
+                    + formatNumber(secondNumber);
+
+            expressionDisplay.setText(calculation);
 
             // Calculate
             switch (operator) {
@@ -392,12 +455,17 @@ public class Calculator extends Application {
                         display.setText("Error");
 
                         expressionDisplay.setText(
-                                formatNumber(firstNumber)
-                                + " ÷ "
-                                + formatNumber(secondNumber)
+                                calculation
+                        );
+
+                        // Add error to history
+                        historyList.getItems().add(
+                                0,
+                                calculation + " = Error"
                         );
 
                         newNumber = true;
+
                         operator = "";
 
                         return;
@@ -409,6 +477,7 @@ public class Calculator extends Application {
                     break;
 
                 default:
+
                     return;
             }
 
@@ -417,7 +486,19 @@ public class Calculator extends Application {
                     formatNumber(result)
             );
 
+            // =========================
+            // ADD TO HISTORY
+            // =========================
+
+            historyList.getItems().add(
+                    0,
+                    calculation
+                    + " = "
+                    + formatNumber(result)
+            );
+
             newNumber = true;
+
             operator = "";
         }
     }
