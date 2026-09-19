@@ -12,7 +12,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-public class Calculato extends Application {
+public class Calculator extends Application {
 
     private TextField display;
     private TextField expressionDisplay;
