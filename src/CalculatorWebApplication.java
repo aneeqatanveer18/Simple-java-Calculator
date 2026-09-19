@@ -1,3 +1,5 @@
+package webcalculator;
+
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
@@ -6,8 +8,12 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 public class CalculatorWebApplication {
+
+    private static final List<String> history = new ArrayList<>();
 
     public static void main(String[] args) throws Exception {
 
@@ -16,87 +22,142 @@ public class CalculatorWebApplication {
         );
 
         HttpServer server = HttpServer.create(
-                new InetSocketAddress(port), 0
+                new InetSocketAddress("0.0.0.0", port),
+                0
         );
 
-        server.createContext("/", CalculatorWebApplication::handleRequest);
+        server.createContext(
+                "/",
+                CalculatorWebApplication::handleRequest
+        );
 
         server.start();
 
-        System.out.println("Calculator web application started on port " + port);
+        System.out.println(
+                "Calculator web application started on port " + port
+        );
     }
 
     private static void handleRequest(HttpExchange exchange)
             throws IOException {
 
-        String path = exchange.getRequestURI().getPath();
+        String query = exchange.getRequestURI().getQuery();
 
-        if (path.equals("/")) {
-            sendResponse(exchange, calculatorPage("", "", "", ""));
-            return;
-        }
+        String action = getParameter(query, "action");
 
-        if (path.equals("/calculate")) {
+        String display = "0";
+        String expression = "";
 
-            String query = exchange.getRequestURI().getQuery();
+        if ("calculate".equals(action)) {
 
-            String a = getParameter(query, "a");
-            String b = getParameter(query, "b");
-            String operation = getParameter(query, "operation");
-
-            String result;
+            String first = getParameter(query, "first");
+            String operator = getParameter(query, "operator");
+            String second = getParameter(query, "second");
 
             try {
 
-                double number1 = Double.parseDouble(a);
-                double number2 = Double.parseDouble(b);
+                double firstNumber =
+                        Double.parseDouble(first);
 
-                switch (operation) {
+                double secondNumber =
+                        Double.parseDouble(second);
+
+                double result = 0;
+
+                expression =
+                        formatNumber(firstNumber)
+                        + " "
+                        + operator
+                        + " "
+                        + formatNumber(secondNumber);
+
+                switch (operator) {
 
                     case "+":
-                        result = format(number1 + number2);
+
+                        result = firstNumber + secondNumber;
+
                         break;
 
-                    case "-":
-                        result = format(number1 - number2);
+                    case "−":
+
+                        result = firstNumber - secondNumber;
+
                         break;
 
-                    case "*":
-                        result = format(number1 * number2);
+                    case "×":
+
+                        result = firstNumber * secondNumber;
+
                         break;
 
-                    case "/":
-                        if (number2 == 0) {
-                            result = "Cannot divide by zero";
-                        } else {
-                            result = format(number1 / number2);
+                    case "÷":
+
+                        if (secondNumber == 0) {
+
+                            display = "Error";
+
+                            history.add(
+                                    0,
+                                    expression + " = Error"
+                            );
+
+                            break;
                         }
-                        break;
 
-                    case "%":
-                        result = format(number1 / 100);
+                        result = firstNumber / secondNumber;
+
                         break;
 
                     default:
-                        result = "Invalid operation";
+
+                        display = "Error";
+
+                        break;
+                }
+
+                if (!display.equals("Error")) {
+
+                    display = formatNumber(result);
+
+                    history.add(
+                            0,
+                            expression + " = " + display
+                    );
                 }
 
             } catch (Exception e) {
-                result = "Please enter valid numbers";
+
+                display = "Error";
             }
-
-            sendResponse(
-                    exchange,
-                    calculatorPage(a, b, operation, result)
-            );
-
-            return;
         }
 
-        sendResponse(exchange, "Page not found");
+        String response =
+                calculatorPage(expression, display);
+
+        exchange.getResponseHeaders().set(
+                "Content-Type",
+                "text/html; charset=UTF-8"
+        );
+
+        byte[] responseBytes =
+                response.getBytes(StandardCharsets.UTF_8);
+
+        exchange.sendResponseHeaders(
+                200,
+                responseBytes.length
+        );
+
+        try (OutputStream output =
+                     exchange.getResponseBody()) {
+
+            output.write(responseBytes);
+        }
     }
 
-    private static String getParameter(String query, String name) {
+    private static String getParameter(
+            String query,
+            String name) {
 
         if (query == null) {
             return "";
@@ -104,153 +165,624 @@ public class CalculatorWebApplication {
 
         for (String parameter : query.split("&")) {
 
-            String[] parts = parameter.split("=", 2);
+            String[] parts =
+                    parameter.split("=", 2);
 
-            if (parts.length == 2 && parts[0].equals(name)) {
+            if (parts.length == 2 &&
+                    parts[0].equals(name)) {
 
-                return URLDecoder.decode(
-                        parts[1],
-                        StandardCharsets.UTF_8
-                );
+                String value =
+                        URLDecoder.decode(
+                                parts[1],
+                                StandardCharsets.UTF_8
+                        );
+
+                if (name.equals("operator") &&
+                        value.equals(" ")) {
+
+                    return "+";
+                }
+
+                return value;
             }
         }
 
         return "";
     }
 
-    private static String format(double number) {
+    private static String formatNumber(
+            double number) {
 
         if (number == (long) number) {
-            return String.valueOf((long) number);
-        }
 
-        return String.valueOf(number);
+            return String.valueOf(
+                    (long) number
+            );
+
+        } else {
+
+            return String.valueOf(number);
+        }
     }
 
-    private static void sendResponse(
-            HttpExchange exchange,
-            String response) throws IOException {
+    private static String escapeHTML(
+            String text) {
 
-        byte[] data = response.getBytes(StandardCharsets.UTF_8);
-
-        exchange.getResponseHeaders().set(
-                "Content-Type",
-                "text/html; charset=UTF-8"
-        );
-
-        exchange.sendResponseHeaders(200, data.length);
-
-        try (OutputStream output = exchange.getResponseBody()) {
-            output.write(data);
+        if (text == null) {
+            return "";
         }
+
+        return text
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;");
     }
 
     private static String calculatorPage(
-            String a,
-            String b,
-            String operation,
-            String result) {
+            String expression,
+            String display) {
+
+        String safeExpression =
+                escapeHTML(expression);
+
+        String safeDisplay =
+                escapeHTML(display);
+
+        StringBuilder historyHTML =
+                new StringBuilder();
+
+        for (String item : history) {
+
+            historyHTML.append(
+                    "<div class=\"history-item\">"
+            );
+
+            historyHTML.append(
+                    escapeHTML(item)
+            );
+
+            historyHTML.append(
+                    "</div>"
+            );
+        }
 
         return """
                 <!DOCTYPE html>
                 <html>
+
                 <head>
-                    <title>Simple Java Calculator</title>
+
+                    <meta charset="UTF-8">
+
+                    <meta name="viewport"
+                          content="width=device-width, initial-scale=1.0">
+
+                    <title>Simple Calculator</title>
 
                     <style>
+
+                        * {
+                            box-sizing: border-box;
+                        }
+
                         body {
+
+                            margin: 0;
+                            padding: 0;
+
                             font-family: Arial, sans-serif;
-                            background: #1e1e2e;
+
+                            background-color: #121212;
+
                             color: white;
-                            text-align: center;
-                            padding-top: 60px;
                         }
 
                         .calculator {
-                            width: 350px;
-                            margin: auto;
-                            padding: 25px;
-                            background: #303044;
-                            border-radius: 15px;
+
+                            width: 380px;
+
+                            margin: 30px auto;
+
+                            padding: 20px;
+
+                            background-color: #121212;
+
+                            border-radius: 12px;
                         }
 
-                        input, select, button {
-                            padding: 12px;
-                            margin: 8px;
-                            border-radius: 8px;
+                        .expression-display {
+
+                            width: 100%%;
+
+                            height: 45px;
+
+                            background-color: #121212;
+
+                            color: #aaaaaa;
+
                             border: none;
+
+                            outline: none;
+
+                            text-align: right;
+
+                            font-size: 18px;
+
+                            padding: 5px;
+                        }
+
+                        .main-display {
+
+                            width: 100%%;
+
+                            height: 60px;
+
+                            background-color: #202124;
+
+                            color: white;
+
+                            border: 1px solid #555555;
+
+                            border-radius: 8px;
+
+                            outline: none;
+
+                            text-align: right;
+
+                            font-size: 30px;
+
+                            padding: 10px;
+
+                            margin-bottom: 15px;
+                        }
+
+                        .history-title {
+
                             font-size: 16px;
+
+                            color: white;
+
+                            margin-bottom: 8px;
+                        }
+
+                        .history {
+
+                            height: 120px;
+
+                            overflow-y: auto;
+
+                            background-color: #202124;
+
+                            border-radius: 8px;
+
+                            margin-bottom: 15px;
+
+                            padding: 5px;
+                        }
+
+                        .history-item {
+
+                            color: white;
+
+                            padding: 7px;
+
+                            border-bottom: 1px solid #444444;
+
+                            text-align: right;
+
+                            font-size: 14px;
+                        }
+
+                        .buttons {
+
+                            display: grid;
+
+                            grid-template-columns:
+                                repeat(4, 1fr);
+
+                            gap: 8px;
                         }
 
                         button {
-                            cursor: pointer;
-                            background: #4caf50;
+
+                            height: 60px;
+
+                            border: none;
+
+                            border-radius: 10px;
+
+                            background-color: #303134;
+
                             color: white;
+
+                            font-size: 20px;
+
+                            cursor: pointer;
                         }
 
-                        .result {
-                            margin-top: 20px;
-                            font-size: 22px;
-                            font-weight: bold;
+                        button:hover {
+
+                            opacity: 0.85;
                         }
+
+                        .clear {
+
+                            background-color: #d93025;
+                        }
+
+                        .equals {
+
+                            background-color: #1a73e8;
+                        }
+
+                        .operator {
+
+                            background-color: #f9ab00;
+
+                            color: black;
+                        }
+
+                        .zero {
+
+                            grid-column: span 2;
+                        }
+
                     </style>
+
                 </head>
 
                 <body>
 
                     <div class="calculator">
 
-                        <h1>Java Calculator</h1>
+                        <input
+                            class="expression-display"
+                            type="text"
+                            value="%s"
+                            readonly
+                        >
 
-                        <form action="/calculate" method="get">
+                        <input
+                            class="main-display"
+                            id="display"
+                            type="text"
+                            value="%s"
+                            readonly
+                        >
 
-                            <input
-                                type="number"
-                                step="any"
-                                name="a"
-                                placeholder="First number"
-                                value="%s"
-                                required
-                            >
+                        <div class="history-title">
 
-                            <br>
+                            Calculation History
 
-                            <select name="operation">
+                        </div>
 
-                                <option value="+">+</option>
-                                <option value="-">−</option>
-                                <option value="*">×</option>
-                                <option value="/">÷</option>
-                                <option value="%%">%%</option>
+                        <div class="history">
 
-                            </select>
+                            %s
 
-                            <br>
+                        </div>
 
-                            <input
-                                type="number"
-                                step="any"
-                                name="b"
-                                placeholder="Second number"
-                                value="%s"
-                            >
+                        <div class="buttons">
 
-                            <br>
+                            <button
+                                class="clear"
+                                onclick="clearDisplay()">
 
-                            <button type="submit">
-                                Calculate
+                                C
+
                             </button>
 
-                        </form>
+                            <button
+                                onclick="deleteLast()">
 
-                        <div class="result">
-                            Result: %s
+                                ⌫
+
+                            </button>
+
+                            <button
+                                class="operator"
+                                onclick="percentage()">
+
+                                %%
+
+                            </button>
+
+                            <button
+                                class="operator"
+                                onclick="appendOperator('÷')">
+
+                                ÷
+
+                            </button>
+
+                            <button
+                                onclick="appendNumber('7')">
+
+                                7
+
+                            </button>
+
+                            <button
+                                onclick="appendNumber('8')">
+
+                                8
+
+                            </button>
+
+                            <button
+                                onclick="appendNumber('9')">
+
+                                9
+
+                            </button>
+
+                            <button
+                                class="operator"
+                                onclick="appendOperator('×')">
+
+                                ×
+
+                            </button>
+
+                            <button
+                                onclick="appendNumber('4')">
+
+                                4
+
+                            </button>
+
+                            <button
+                                onclick="appendNumber('5')">
+
+                                5
+
+                            </button>
+
+                            <button
+                                onclick="appendNumber('6')">
+
+                                6
+
+                            </button>
+
+                            <button
+                                class="operator"
+                                onclick="appendOperator('−')">
+
+                                −
+
+                            </button>
+
+                            <button
+                                onclick="appendNumber('1')">
+
+                                1
+
+                            </button>
+
+                            <button
+                                onclick="appendNumber('2')">
+
+                                2
+
+                            </button>
+
+                            <button
+                                onclick="appendNumber('3')">
+
+                                3
+
+                            </button>
+
+                            <button
+                                class="operator"
+                                onclick="appendOperator('+')">
+
+                                +
+
+                            </button>
+
+                            <button
+                                class="zero"
+                                onclick="appendNumber('0')">
+
+                                0
+
+                            </button>
+
+                            <button
+                                onclick="appendNumber('.')">
+
+                                .
+
+                            </button>
+
+                            <button
+                                class="equals"
+                                onclick="calculate()">
+
+                                =
+
+                            </button>
+
                         </div>
 
                     </div>
 
+                    <script>
+
+                        let expression = "";
+
+                        function updateDisplay() {
+
+                            document.getElementById(
+                                "display"
+                            ).value = expression;
+                        }
+
+                        function appendNumber(number) {
+
+                            if (
+                                expression === "Error" ||
+                                expression === "0"
+                            ) {
+
+                                expression = "";
+                            }
+
+                            expression += number;
+
+                            updateDisplay();
+                        }
+
+                        function appendOperator(operator) {
+
+                            if (
+                                expression === "" ||
+                                expression === "Error"
+                            ) {
+
+                                return;
+                            }
+
+                            let parts =
+                                expression.trim().split(" ");
+
+                            if (parts.length >= 3) {
+
+                                return;
+                            }
+
+                            expression =
+                                expression.trim()
+                                + " "
+                                + operator
+                                + " ";
+
+                            updateDisplay();
+                        }
+
+                        function clearDisplay() {
+
+                            expression = "";
+
+                            window.location.href = "/";
+                        }
+
+                        function deleteLast() {
+
+                            if (
+                                expression === "" ||
+                                expression === "Error"
+                            ) {
+
+                                return;
+                            }
+
+                            expression =
+                                expression.trimEnd();
+
+                            expression =
+                                expression.slice(0, -1);
+
+                            expression =
+                                expression.trimEnd();
+
+                            updateDisplay();
+                        }
+
+                        function percentage() {
+
+                            if (
+                                expression === "" ||
+                                expression === "Error"
+                            ) {
+
+                                return;
+                            }
+
+                            let parts =
+                                expression.trim().split(" ");
+
+                            let number;
+
+                            if (parts.length === 1) {
+
+                                number =
+                                    parseFloat(parts[0]);
+
+                            } else if (parts.length === 3) {
+
+                                number =
+                                    parseFloat(parts[2]);
+
+                            } else {
+
+                                return;
+                            }
+
+                            number = number / 100;
+
+                            if (parts.length === 1) {
+
+                                expression =
+                                    number.toString();
+
+                            } else {
+
+                                expression =
+                                    parts[0]
+                                    + " "
+                                    + parts[1]
+                                    + " "
+                                    + number.toString();
+                            }
+
+                            updateDisplay();
+                        }
+
+                        function calculate() {
+
+                            if (
+                                expression === "" ||
+                                expression === "Error"
+                            ) {
+
+                                return;
+                            }
+
+                            let parts =
+                                expression.trim().split(" ");
+
+                            if (parts.length !== 3) {
+
+                                document.getElementById(
+                                    "display"
+                                ).value = "Error";
+
+                                return;
+                            }
+
+                            window.location.href =
+                                "/?action=calculate"
+                                + "&first="
+                                + encodeURIComponent(parts[0])
+                                + "&operator="
+                                + encodeURIComponent(parts[1])
+                                + "&second="
+                                + encodeURIComponent(parts[2]);
+                        }
+
+                    </script>
+
                 </body>
+
                 </html>
-                """.formatted(a, b, result);
+                """.formatted(
+                safeExpression,
+                safeDisplay,
+                historyHTML.toString()
+        );
     }
 }
